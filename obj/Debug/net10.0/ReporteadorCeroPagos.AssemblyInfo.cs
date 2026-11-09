@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ReporteadorCeroPagos")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+ef533e4971e3bbd097e4156d36d57c3bf86eefb1")]
 [assembly: System.Reflection.AssemblyProductAttribute("ReporteadorCeroPagos")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ReporteadorCeroPagos")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
