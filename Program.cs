@@ -13,8 +13,8 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 var app = builder.Build();
 
 // Conexión directa a Supabase para evitar errores de variables en Render
-string connectionString = "postgresql://postgres:TU_CONTRASEÑA@db.jmbhmrekhsoptxhopfsv.supabase.co:5432/postgres";
-
+// Formato seguro Clave=Valor (immune a símbolos especiales en la contraseña)
+string connectionString = "Host=db.jmbhmrekhsoptxhopfsv.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=Supabase2026";
 // 1. Pantalla Principal
 app.MapGet("/", async context =>
 {
