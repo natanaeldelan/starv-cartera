@@ -12,9 +12,11 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// Cadena de conexión a Supabase (PostgreSQL)
-string connectionString = Environment.GetEnvironmentVariable("DATABASE_URL") 
+// Leer y limpiar la conexión para evitar comillas o espacios accidentales de Render
+string rawConn = Environment.GetEnvironmentVariable("DATABASE_URL") 
     ?? "Host=localhost;Database=cartera_startv;Username=postgres;Password=tu_password";
+
+string connectionString = rawConn.Trim('"', '\'', ' ');
 
 // 1. Pantalla Principal
 app.MapGet("/", async context =>
