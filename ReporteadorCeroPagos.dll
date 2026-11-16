@@ -11,5 +11,19 @@
     <PackageReference Include="Dapper" Version="2.1.89" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.14" />
   </ItemGroup>
+<button onclick="limpiarRegistros()" class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+    Limpiar Registros
+</button>
+
+<script>
+async function limpiarRegistros() {
+    if (!confirm("¿Seguro que deseas borrar todos los registros cargados?")) return;
+    const res = await fetch('/api/limpiar-registros', { method: 'POST' });
+    if (res.ok) {
+        alert("Base de datos limpiada.");
+        location.reload();
+    }
+}
+</script>
 
 </Project>

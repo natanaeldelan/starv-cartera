@@ -1,38 +1,20 @@
 using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using Dapper;
 using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar el puerto dinámico que exige la nube (Render, Railway, etc.)
+// Configurar el puerto dinámico que exige Render
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// Base de datos SQLite local (en la nube se mantiene segura en el contenedor)
-string connectionString = "Data Source=cartera_startv.db";
-
-using (var connection = new SqliteConnection(connectionString))
-{
-    connection.Open();
-    string createTableQuery = @"
-        CREATE TABLE IF NOT EXISTS SeguimientoClientes (
-            Contrato TEXT PRIMARY KEY,
-            Cliente TEXT,
-            Plaza TEXT,
-            FechaContratacion TEXT,
-            Telefono TEXT,
-            MesesPagados INTEGER,
-            Tecnico TEXT,
-            Estatus TEXT DEFAULT 'Pendiente',
-            Observaciones TEXT,
-            Liquidado INTEGER DEFAULT 0
-        );";
-    connection.Execute(createTableQuery);
-}
+// Cadena de conexión a Supabase (PostgreSQL)
+string connectionString = Environment.GetEnvironmentVariable("DATABASE_URL") 
+    ?? "Host=localhost;Database=cartera_startv;Username=postgres;Password=tu_password";
 
 // 1. Pantalla Principal
 app.MapGet("/", async context =>
@@ -48,8 +30,8 @@ app.MapGet("/", async context =>
         </head>
         <body class='bg-light p-4'>
             <div class='container bg-white p-4 rounded shadow-sm'>
-                <h2 class='text-primary mb-2'><i class='bi bi-cloud-check-fill'></i> Control y Seguimiento de Cartera - StarTV (Nube)</h2>
-                <p class='text-muted'>Sistema centralizado accesible desde cualquier ubicación.</p>
+                <h2 class='text-primary mb-2'><i class='bi bi-cloud-check-fill'></i> Control y Seguimiento de Cartera - StarTV (Nube Supabase)</h2>
+                <p class='text-muted'>Sistema centralizado con persistencia total en la nube.</p>
                 
                 <div class='d-flex gap-3 mb-4'>
                     <a href='/dashboard' class='btn btn-dark'><i class='bi bi-kanban'></i> Ver Tablero de Seguimiento Actual</a>
@@ -88,7 +70,7 @@ app.MapGet("/", async context =>
         </html>");
 });
 
-// 2. Procesar Excel y Guardar/Actualizar en SQLite
+// 2. Procesar Excel y Guardar/Actualizar en PostgreSQL
 app.MapPost("/upload", async (HttpContext context) =>
 {
     var form = await context.Request.ReadFormAsync();
@@ -111,7 +93,7 @@ app.MapPost("/upload", async (HttpContext context) =>
         var worksheet = workbook.Worksheet(1);
         var rows = worksheet.RowsUsed().Skip(2);
 
-        using var connection = new SqliteConnection(connectionString);
+        using var connection = new NpgsqlConnection(connectionString);
         connection.Open();
 
         foreach (var row in rows)
@@ -136,12 +118,12 @@ app.MapPost("/upload", async (HttpContext context) =>
             if (mesesSeleccionados.Contains(mesesPagados) && !string.IsNullOrEmpty(contrato))
             {
                 string upsertQuery = @"
-                    INSERT INTO SeguimientoClientes (Contrato, Cliente, Plaza, FechaContratacion, Telefono, MesesPagados, Tecnico)
+                    INSERT INTO seguimientoclientes (contrato, cliente, plaza, fechacontratacion, telefono, mesespagados, tecnico)
                     VALUES (@Contrato, @Cliente, @Plaza, @FechaContratacion, @Telefono, @MesesPagados, @Tecnico)
-                    ON CONFLICT(Contrato) DO UPDATE SET 
-                        MesesPagados = @MesesPagados,
-                        Telefono = @Telefono,
-                        Tecnico = @Tecnico;
+                    ON CONFLICT (contrato) DO UPDATE SET 
+                        mesespagados = @MesesPagados,
+                        telefono = @Telefono,
+                        tecnico = @Tecnico;
                 ";
                 connection.Execute(upsertQuery, new { Contrato = contrato, Cliente = cliente, Plaza = plaza, FechaContratacion = fechaContratacion, Telefono = contactoTel, MesesPagados = mesesPagados, Tecnico = tecnico });
             }
@@ -154,8 +136,8 @@ app.MapPost("/upload", async (HttpContext context) =>
 // 3. Tablero de Seguimiento
 app.MapGet("/dashboard", async context =>
 {
-    using var connection = new SqliteConnection(connectionString);
-    var cuentas = connection.Query("SELECT * FROM SeguimientoClientes WHERE Liquidado = 0 ORDER BY Tecnico, MesesPagados").ToList();
+    using var connection = new NpgsqlConnection(connectionString);
+    var cuentas = connection.Query("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, fechacontratacion AS FechaContratacion, telefono AS Telefono, mesespagados AS MesesPagados, tecnico AS Tecnico, estatus AS Estatus, observaciones AS Observaciones, liquidado AS Liquidado FROM seguimientoclientes WHERE liquidado = 0 ORDER BY tecnico, mesespagados").ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head>");
@@ -218,8 +200,8 @@ app.MapPost("/update-obs", async (HttpContext context) =>
     string contrato = form["contrato"];
     string observaciones = form["observaciones"];
 
-    using var connection = new SqliteConnection(connectionString);
-    connection.Execute("UPDATE SeguimientoClientes SET Observaciones = @Obs WHERE Contrato = @Contrato", new { Obs = observaciones, Contrato = contrato });
+    using var connection = new NpgsqlConnection(connectionString);
+    connection.Execute("UPDATE seguimientoclientes SET observaciones = @Obs WHERE contrato = @Contrato", new { Obs = observaciones, Contrato = contrato });
 
     context.Response.Redirect("/dashboard");
 });
@@ -230,8 +212,8 @@ app.MapGet("/liquidar", async context =>
     string contrato = context.Request.Query["contrato"];
     if (!string.IsNullOrEmpty(contrato))
     {
-        using var connection = new SqliteConnection(connectionString);
-        connection.Execute("UPDATE SeguimientoClientes SET Liquidado = 1 WHERE Contrato = @Contrato", new { Contrato = contrato });
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Execute("UPDATE seguimientoclientes SET liquidado = 1 WHERE contrato = @Contrato", new { Contrato = contrato });
     }
     context.Response.Redirect("/dashboard");
 });
@@ -242,25 +224,26 @@ app.MapGet("/delete", async context =>
     string contrato = context.Request.Query["contrato"];
     if (!string.IsNullOrEmpty(contrato))
     {
-        using var connection = new SqliteConnection(connectionString);
-        connection.Execute("DELETE FROM SeguimientoClientes WHERE Contrato = @Contrato", new { Contrato = contrato });
+        using var connection = new SqliteConnection(connectionString); // O NpgsqlConnection
+        using var connectionPg = new NpgsqlConnection(connectionString);
+        connectionPg.Execute("DELETE FROM seguimientoclientes WHERE contrato = @Contrato", new { Contrato = contrato });
     }
     context.Response.Redirect("/dashboard");
 });
 
-// 6.5 Vaciar Todos los Registros del Excel
+// 6.5 Vaciar Todos los Registros
 app.MapGet("/delete-all", async context =>
 {
-    using var connection = new SqliteConnection(connectionString);
-    connection.Execute("DELETE FROM SeguimientoClientes;");
+    using var connection = new NpgsqlConnection(connectionString);
+    connection.Execute("DELETE FROM seguimientoclientes;");
     context.Response.Redirect("/dashboard");
 });
 
 // 7. Ver Cuentas Liquidadas
 app.MapGet("/liquidados", async context =>
 {
-    using var connection = new SqliteConnection(connectionString);
-    var cuentas = connection.Query("SELECT * FROM SeguimientoClientes WHERE Liquidado = 1").ToList();
+    using var connection = new NpgsqlConnection(connectionString);
+    var cuentas = connection.Query("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, tecnico AS Tecnico, observaciones AS Observaciones FROM seguimientoclientes WHERE liquidado = 1").ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head><link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'></head><body class='bg-light p-4'><div class='container bg-white p-4 rounded shadow-sm'>");
