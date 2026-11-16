@@ -11,14 +11,14 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
+string rawConn = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
 
-// Leer y limpiar la conexión para evitar comillas o espacios accidentales de Render
-string rawConn = Environment.GetEnvironmentVariable("DATABASE_URL") 
-    ?? "Host=localhost;Database=cartera_startv;Username=postgres;Password=tu_password";
+if (string.IsNullOrWhiteSpace(rawConn))
+{
+    throw new InvalidOperationException("ERROR CRITICO: La variable de entorno DATABASE_URL no está configurada en Render.");
+}
 
-string connectionString = rawConn.Trim('"', '\'', ' ');
-
-// 1. Pantalla Principal
+string connectionString = rawConn.Trim().Trim('"', '\'', ' ', '\r', '\n', '\uFEFF');
 app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
