@@ -165,7 +165,7 @@ app.MapGet("/dashboard", async context =>
     
     await context.Response.WriteAsync("<div class='d-flex justify-content-between align-items-center mb-4'>");
     await context.Response.WriteAsync("<div><h2 class='text-primary mb-0'>Tablero de Seguimiento de Cartera</h2><small class='text-muted'>Acceso global para el equipo</small></div>");
-    await context.Response.WriteAsync("<div><a href='/' class='btn btn-secondary me-2'><i class='bi bi-cloud-arrow-up'></i> Subir Nuevo Excel</a><a href='/liquidados' class='btn btn-success'><i class='bi bi-check-all'></i> Cuentas Liquidadas</a></div>");
+    await context.Response.WriteAsync("<div><a href='/' class='btn btn-secondary me-2'><i class='bi bi-cloud-arrow-up'></i> Subir Nuevo Excel</a><a href='/liquidados' class='btn btn-success me-2'><i class='bi bi-check-all'></i> Cuentas Liquidadas</a><a href='/delete-all' class='btn btn-danger' onclick=\"return confirm('¿Estás seguro de borrar TODOS los registros cargados del Excel? Esta acción no se puede deshacer.');\"><i class='bi bi-trash3-fill'></i> Vaciar Todo</a></div>");
     await context.Response.WriteAsync("</div>");
 
     var grupos = cuentas.GroupBy(x => x.Tecnico);
@@ -236,7 +236,7 @@ app.MapGet("/liquidar", async context =>
     context.Response.Redirect("/dashboard");
 });
 
-// 6. Eliminar Registro
+// 6. Eliminar Registro Individual
 app.MapGet("/delete", async context =>
 {
     string contrato = context.Request.Query["contrato"];
@@ -245,6 +245,14 @@ app.MapGet("/delete", async context =>
         using var connection = new SqliteConnection(connectionString);
         connection.Execute("DELETE FROM SeguimientoClientes WHERE Contrato = @Contrato", new { Contrato = contrato });
     }
+    context.Response.Redirect("/dashboard");
+});
+
+// 6.5 Vaciar Todos los Registros del Excel
+app.MapGet("/delete-all", async context =>
+{
+    using var connection = new SqliteConnection(connectionString);
+    connection.Execute("DELETE FROM SeguimientoClientes;");
     context.Response.Redirect("/dashboard");
 });
 
