@@ -11,7 +11,8 @@ var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
-string rawConn = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
+// Conexión directa a Supabase para evitar errores de variables en Render
+string connectionString = "postgresql://postgres:Supabase2026@db.jmbhmrekhsoptxhopfsv.supabase.co:5432/postgres";
 
 if (string.IsNullOrWhiteSpace(rawConn))
 {
