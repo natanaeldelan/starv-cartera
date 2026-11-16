@@ -13,7 +13,7 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 var app = builder.Build();
 
 // Formato estándar Clave=Valor para Session Pooler de Supabase (IPv4)
-string connectionString = "Host=aws-0-us-east-1.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.jmbhmrekhsoptxhopfsv;Password=Supabase2026;SSL Mode=Require;Trust Server Certificate=true";
+string connectionString = "Host=aws-1-us-east-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.jmbhmrekhsoptxhopfsv;Password=Supabase2026;SSL Mode=Require;Trust Server Certificate=true";
 
 // 1. Pantalla Principal
 app.MapGet("/", async context =>
@@ -256,4 +256,5 @@ app.MapGet("/liquidados", async context =>
 });
 
 app.Run();
+
 
