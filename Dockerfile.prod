@@ -2,8 +2,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /app
 
 COPY . .
-RUN dotnet restore
-RUN dotnet publish -c Release -o /out
+RUN CSPROJ=$(find . -name "*.csproj" | head -n 1) && \
+    echo "Compilando: $CSPROJ" && \
+    dotnet restore "$CSPROJ" && \
+    dotnet publish "$CSPROJ" -c Release -o /out
 
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
 WORKDIR /app
@@ -12,4 +14,4 @@ COPY --from=build /out ./
 EXPOSE 8080
 ENV ASPNETCORE_URLS=http://+:8080
 
-ENTRYPOINT ["dotnet", "ReporteadorCeroPagos.dll"]
+CMD ["sh", "-c", "dotnet $(ls *.dll | grep -v 'Views' | head -n 1)"]
