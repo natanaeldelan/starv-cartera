@@ -224,9 +224,8 @@ app.MapGet("/delete", async context =>
     string contrato = context.Request.Query["contrato"];
     if (!string.IsNullOrEmpty(contrato))
     {
-        using var connection = new SqliteConnection(connectionString); // O NpgsqlConnection
-        using var connectionPg = new NpgsqlConnection(connectionString);
-        connectionPg.Execute("DELETE FROM seguimientoclientes WHERE contrato = @Contrato", new { Contrato = contrato });
+        using var connection = new NpgsqlConnection(connectionString);
+        connection.Execute("DELETE FROM seguimientoclientes WHERE contrato = @Contrato", new { Contrato = contrato });
     }
     context.Response.Redirect("/dashboard");
 });
