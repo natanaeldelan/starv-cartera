@@ -10,21 +10,12 @@ var builder = WebApplication.CreateBuilder(args);
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
-var builder = WebApplication.CreateBuilder(args);
-
-// Configurar el puerto dinámico que exige Render
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
-
 var app = builder.Build();
 
-// Lectura y limpieza única de la cadena de conexión
-string rawConn = Environment.GetEnvironmentVariable("DATABASE_URL") ?? "";
-if (string.IsNullOrWhiteSpace(rawConn))
-{
-    throw new InvalidOperationException("ERROR: La variable de entorno DATABASE_URL no está configurada en Render.");
-}
-string connectionString = rawConn.Trim('"', '\'', ' ', '\r', '\n', '\uFEFF');
+// Conexión directa a Supabase para evitar errores de variables en Render
+string connectionString = "postgresql://postgres:TU_CONTRASEÑA@db.jmbhmrekhsoptxhopfsv.supabase.co:5432/postgres";
+
+// 1. Pantalla Principal
 app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
