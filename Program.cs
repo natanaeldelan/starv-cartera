@@ -14,8 +14,7 @@ var app = builder.Build();
 
 // Conexión directa a Supabase para evitar errores de variables en Render
 // Formato seguro Clave=Valor (immune a símbolos especiales en la contraseña)
-string connectionString = "Host=db.jmbhmrekhsoptxhopfsv.supabase.co;Port=5432;Database=postgres;Username=postgres;Password=Supabase2026";
-// 1. Pantalla Principal
+string connectionString = "postgresql://postgres.tu_proyecto:Supabase2026@aws-0-us-east-1.pooler.supabase.com:6543/postgres";// 1. Pantalla Principal
 app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
