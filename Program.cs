@@ -1,4 +1,4 @@
-using ClosedXML.Excel;
+﻿using ClosedXML.Excel;
 using Microsoft.AspNetCore.Http;
 using Npgsql;
 using Dapper;
@@ -12,9 +12,10 @@ builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// Conexión directa a Supabase para evitar errores de variables en Render
-// Formato seguro Clave=Valor (immune a símbolos especiales en la contraseña)
-string connectionString = "postgresql://postgres.tu_proyecto:Supabase2026@aws-0-us-east-1.pooler.supabase.com:6543/postgres";// 1. Pantalla Principal
+// Formato estándar Clave=Valor para Session Pooler de Supabase (IPv4)
+string connectionString = "Host=aws-0-us-west-1.pooler.supabase.com;Port=6543;Database=postgres;Username=postgres.jmbhmrekhsoptxhopfsv;Password=Supabase2026;SSL Mode=Require;Trust Server Certificate=true";
+
+// 1. Pantalla Principal
 app.MapGet("/", async context =>
 {
     context.Response.ContentType = "text/html; charset=utf-8";
@@ -91,8 +92,8 @@ app.MapPost("/upload", async (HttpContext context) =>
         var worksheet = workbook.Worksheet(1);
         var rows = worksheet.RowsUsed().Skip(2);
 
-        using var connection = new NpgsqlConnection(connectionString);
-        connection.Open();
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.OpenAsync();
 
         foreach (var row in rows)
         {
@@ -123,7 +124,7 @@ app.MapPost("/upload", async (HttpContext context) =>
                         telefono = @Telefono,
                         tecnico = @Tecnico;
                 ";
-                connection.Execute(upsertQuery, new { Contrato = contrato, Cliente = cliente, Plaza = plaza, FechaContratacion = fechaContratacion, Telefono = contactoTel, MesesPagados = mesesPagados, Tecnico = tecnico });
+                await connection.ExecuteAsync(upsertQuery, new { Contrato = contrato, Cliente = cliente, Plaza = plaza, FechaContratacion = fechaContratacion, Telefono = contactoTel, MesesPagados = mesesPagados, Tecnico = tecnico });
             }
         }
     }
@@ -134,8 +135,8 @@ app.MapPost("/upload", async (HttpContext context) =>
 // 3. Tablero de Seguimiento
 app.MapGet("/dashboard", async context =>
 {
-    using var connection = new NpgsqlConnection(connectionString);
-    var cuentas = connection.Query("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, fechacontratacion AS FechaContratacion, telefono AS Telefono, mesespagados AS MesesPagados, tecnico AS Tecnico, estatus AS Estatus, observaciones AS Observaciones, liquidado AS Liquidado FROM seguimientoclientes WHERE liquidado = 0 ORDER BY tecnico, mesespagados").ToList();
+    await using var connection = new NpgsqlConnection(connectionString);
+    var cuentas = (await connection.QueryAsync("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, fechacontratacion AS FechaContratacion, telefono AS Telefono, mesespagados AS MesesPagados, tecnico AS Tecnico, estatus AS Estatus, observaciones AS Observaciones, liquidado AS Liquidado FROM seguimientoclientes WHERE liquidado = 0 ORDER BY tecnico, mesespagados")).ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head>");
@@ -195,11 +196,11 @@ app.MapGet("/dashboard", async context =>
 app.MapPost("/update-obs", async (HttpContext context) =>
 {
     var form = await context.Request.ReadFormAsync();
-    string contrato = form["contrato"];
-    string observaciones = form["observaciones"];
+    string contrato = form["contrato"].ToString();
+    string observaciones = form["observaciones"].ToString();
 
-    using var connection = new NpgsqlConnection(connectionString);
-    connection.Execute("UPDATE seguimientoclientes SET observaciones = @Obs WHERE contrato = @Contrato", new { Obs = observaciones, Contrato = contrato });
+    await using var connection = new NpgsqlConnection(connectionString);
+    await connection.ExecuteAsync("UPDATE seguimientoclientes SET observaciones = @Obs WHERE contrato = @Contrato", new { Obs = observaciones, Contrato = contrato });
 
     context.Response.Redirect("/dashboard");
 });
@@ -207,11 +208,11 @@ app.MapPost("/update-obs", async (HttpContext context) =>
 // 5. Liquidar Cuenta
 app.MapGet("/liquidar", async context =>
 {
-    string contrato = context.Request.Query["contrato"];
+    string contrato = context.Request.Query["contrato"].ToString();
     if (!string.IsNullOrEmpty(contrato))
     {
-        using var connection = new NpgsqlConnection(connectionString);
-        connection.Execute("UPDATE seguimientoclientes SET liquidado = 1 WHERE contrato = @Contrato", new { Contrato = contrato });
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.ExecuteAsync("UPDATE seguimientoclientes SET liquidado = 1 WHERE contrato = @Contrato", new { Contrato = contrato });
     }
     context.Response.Redirect("/dashboard");
 });
@@ -219,11 +220,11 @@ app.MapGet("/liquidar", async context =>
 // 6. Eliminar Registro Individual
 app.MapGet("/delete", async context =>
 {
-    string contrato = context.Request.Query["contrato"];
+    string contrato = context.Request.Query["contrato"].ToString();
     if (!string.IsNullOrEmpty(contrato))
     {
-        using var connection = new NpgsqlConnection(connectionString);
-        connection.Execute("DELETE FROM seguimientoclientes WHERE contrato = @Contrato", new { Contrato = contrato });
+        await using var connection = new NpgsqlConnection(connectionString);
+        await connection.ExecuteAsync("DELETE FROM seguimientoclientes WHERE contrato = @Contrato", new { Contrato = contrato });
     }
     context.Response.Redirect("/dashboard");
 });
@@ -231,16 +232,16 @@ app.MapGet("/delete", async context =>
 // 6.5 Vaciar Todos los Registros
 app.MapGet("/delete-all", async context =>
 {
-    using var connection = new NpgsqlConnection(connectionString);
-    connection.Execute("DELETE FROM seguimientoclientes;");
+    await using var connection = new NpgsqlConnection(connectionString);
+    await connection.ExecuteAsync("DELETE FROM seguimientoclientes;");
     context.Response.Redirect("/dashboard");
 });
 
 // 7. Ver Cuentas Liquidadas
 app.MapGet("/liquidados", async context =>
 {
-    using var connection = new NpgsqlConnection(connectionString);
-    var cuentas = connection.Query("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, tecnico AS Tecnico, observaciones AS Observaciones FROM seguimientoclientes WHERE liquidado = 1").ToList();
+    await using var connection = new NpgsqlConnection(connectionString);
+    var cuentas = (await connection.QueryAsync("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, tecnico AS Tecnico, observaciones AS Observaciones FROM seguimientoclientes WHERE liquidado = 1")).ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head><link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'></head><body class='bg-light p-4'><div class='container bg-white p-4 rounded shadow-sm'>");
