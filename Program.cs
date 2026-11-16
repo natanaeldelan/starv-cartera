@@ -6,13 +6,11 @@ using System.Net;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configurar el puerto dinámico que exige Render
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
 builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 
 var app = builder.Build();
 
-// Formato estándar Clave=Valor para Session Pooler de Supabase (IPv4)
 string connectionString = "Host=aws-1-us-east-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.jmbhmrekhsoptxhopfsv;Password=Supabase2026;SSL Mode=Require;Trust Server Certificate=true";
 
 // 1. Pantalla Principal
@@ -31,7 +29,7 @@ app.MapGet("/", async context =>
             <div class='container bg-white p-4 rounded shadow-sm'>
                 <h2 class='text-primary mb-2'><i class='bi bi-cloud-check-fill'></i> Control y Seguimiento de Cartera - StarTV (Nube Supabase)</h2>
                 <p class='text-muted'>Sistema centralizado con persistencia total en la nube.</p>
-                
+
                 <div class='d-flex gap-3 mb-4'>
                     <a href='/dashboard' class='btn btn-dark'><i class='bi bi-kanban'></i> Ver Tablero de Seguimiento Actual</a>
                 </div>
@@ -41,7 +39,7 @@ app.MapGet("/", async context =>
                         <label class='form-label fw-bold'>Subir o Actualizar Concentrado de Clientes (.xlsx):</label>
                         <input type='file' name='archivoExcel' class='form-control' accept='.xlsx' required />
                     </div>
-                    
+
                     <div class='mb-4 p-3 bg-light rounded border'>
                         <label class='form-label fw-bold text-dark'>Filtro de Meses Pagados para Cargar a BD:</label>
                         <div class='row row-cols-auto g-2 mt-1'>");
@@ -104,7 +102,7 @@ app.MapPost("/upload", async (HttpContext context) =>
             string telefono = row.Cell(51).GetString().Trim();
             string celular = row.Cell(53).GetString().Trim();
             string tecnico = row.Cell(59).GetString().Trim();
-            
+
             if (string.IsNullOrEmpty(tecnico)) tecnico = "TÉCNICO NO ASIGNADO / GENERAL";
             string contactoTel = !string.IsNullOrEmpty(celular) && celular != "0" ? celular : (!string.IsNullOrEmpty(telefono) && telefono != "0" ? telefono : "S/N");
 
@@ -136,14 +134,14 @@ app.MapPost("/upload", async (HttpContext context) =>
 app.MapGet("/dashboard", async context =>
 {
     await using var connection = new NpgsqlConnection(connectionString);
-    var cuentas = (await connection.QueryAsync("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, fechacontratacion AS FechaContratacion, telefono AS Telefono, mesespagados AS MesesPagados, tecnico AS Tecnico, estatus AS Estatus, observaciones AS Observaciones, liquidado AS Liquidado FROM seguimientoclientes WHERE liquidado = 0 ORDER BY tecnico, mesespagados")).ToList();
+    var cuentas = (await connection.QueryAsync<ClienteRecord>("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, fechacontratacion AS FechaContratacion, telefono AS Telefono, mesespagados AS MesesPagados, tecnico AS Tecnico, estatus AS Estatus, observaciones AS Observaciones, liquidado AS Liquidado FROM seguimientoclientes WHERE liquidado = 0 ORDER BY tecnico, mesespagados")).ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head>");
     await context.Response.WriteAsync("<link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'>");
     await context.Response.WriteAsync("<link rel='stylesheet' href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css'>");
     await context.Response.WriteAsync("</head><body class='bg-light p-4'><div class='container-fluid bg-white p-4 rounded shadow-sm'>");
-    
+
     await context.Response.WriteAsync("<div class='d-flex justify-content-between align-items-center mb-4'>");
     await context.Response.WriteAsync("<div><h2 class='text-primary mb-0'>Tablero de Seguimiento de Cartera</h2><small class='text-muted'>Acceso global para el equipo</small></div>");
     await context.Response.WriteAsync("<div><a href='/' class='btn btn-secondary me-2'><i class='bi bi-cloud-arrow-up'></i> Subir Nuevo Excel</a><a href='/liquidados' class='btn btn-success me-2'><i class='bi bi-check-all'></i> Cuentas Liquidadas</a><a href='/delete-all' class='btn btn-danger' onclick=\"return confirm('¿Estás seguro de borrar TODOS los registros cargados del Excel? Esta acción no se puede deshacer.');\"><i class='bi bi-trash3-fill'></i> Vaciar Todo</a></div>");
@@ -170,7 +168,7 @@ app.MapGet("/dashboard", async context =>
             await context.Response.WriteAsync($"<td>{item.Plaza}</td>");
             await context.Response.WriteAsync($"<td>{item.FechaContratacion}</td>");
             await context.Response.WriteAsync($"<td><span class='badge bg-warning text-dark'>{item.MesesPagados} pagos</span></td>");
-            
+
             await context.Response.WriteAsync($"<td>");
             await context.Response.WriteAsync($"<form action='/update-obs' method='post' class='d-flex gap-1'>");
             await context.Response.WriteAsync($"<input type='hidden' name='contrato' value='{item.Contrato}' />");
@@ -241,12 +239,12 @@ app.MapGet("/delete-all", async context =>
 app.MapGet("/liquidados", async context =>
 {
     await using var connection = new NpgsqlConnection(connectionString);
-    var cuentas = (await connection.QueryAsync("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, tecnico AS Tecnico, observaciones AS Observaciones FROM seguimientoclientes WHERE liquidado = 1")).ToList();
+    var cuentas = (await connection.QueryAsync<ClienteRecord>("SELECT contrato AS Contrato, cliente AS Cliente, plaza AS Plaza, tecnico AS Tecnico, observaciones AS Observaciones FROM seguimientoclientes WHERE liquidado = 1")).ToList();
 
     context.Response.ContentType = "text/html; charset=utf-8";
     await context.Response.WriteAsync("<!DOCTYPE html><html><head><link href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css' rel='stylesheet'></head><body class='bg-light p-4'><div class='container bg-white p-4 rounded shadow-sm'>");
     await context.Response.WriteAsync("<h2 class='text-success mb-3'>Cuentas Liquidadas / Resueltas</h2><a href='/dashboard' class='btn btn-secondary mb-3'>Regresar al Tablero</a>");
-    
+
     await context.Response.WriteAsync("<table class='table table-bordered table-sm'><thead><tr><th>Contrato</th><th>Cliente</th><th>Plaza</th><th>Técnico</th><th>Observaciones</th></tr></thead><tbody>");
     foreach (var item in cuentas)
     {
@@ -257,4 +255,16 @@ app.MapGet("/liquidados", async context =>
 
 app.Run();
 
-
+public class ClienteRecord
+{
+    public string Contrato { get; set; } = "";
+    public string Cliente { get; set; } = "";
+    public string Plaza { get; set; } = "";
+    public string FechaContratacion { get; set; } = "";
+    public string Telefono { get; set; } = "";
+    public int MesesPagados { get; set; }
+    public string Tecnico { get; set; } = "";
+    public string Estatus { get; set; } = "";
+    public string Observaciones { get; set; } = "";
+    public int Liquidado { get; set; }
+}
